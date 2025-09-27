@@ -1,0 +1,698 @@
+/* App.css - 照片回忆应用的样式 */
+
+/* 全局样式 */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 登录界面样式 */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-form {
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-form h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+  background: #5a67d8;
+  opacity: 1;
+}
+
+.login-hint {
+  margin-top: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.login-hint p {
+  margin: 5px 0;
+}
+
+/* 管理员面板样式 */
+.admin-panel {
+  background: white;
+  padding: 20px;
+  margin: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.admin-panel h3 {
+  color: #333;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 10px;
+}
+
+.admin-section {
+  margin-bottom: 25px;
+}
+
+.admin-section h4 {
+  color: #555;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+/* 同步码区域样式 */
+.sync-code-section {
+  background: rgba(102, 126, 234, 0.1);
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.sync-code {
+  background: white;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: #667eea;
+  text-align: center;
+  margin: 10px 0;
+  word-break: break-all;
+  border: 1px dashed #667eea;
+}
+
+.sync-instructions {
+  font-size: 14px;
+  color: #666;
+  margin-top: 10px;
+  padding-left: 15px;
+  border-left: 2px solid #ddd;
+}
+
+.sync-instructions p {
+  margin: 5px 0;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+  opacity: 1;
+}
+
+.btn-secondary.btn-active {
+  background: #28a745;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.setting-item label {
+  width: 120px;
+  color: #666;
+}
+
+.setting-item select {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.image-item {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+}
+
+.btn-delete {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.image-item:hover .btn-delete {
+  opacity: 1;
+}
+
+.no-images {
+  color: #999;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* 画廊容器样式 */
+.gallery-container {
+  flex: 1;
+  min-height: 100vh;
+  padding: 20px;
+  transition: background 0.5s ease;
+}
+
+/* 不同背景样式 */
+.background-default {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.background-dark {
+  background: #2d3436;
+  color: white;
+}
+
+.background-light {
+  background: #f8f9fa;
+  color: #333;
+}
+
+.background-colorful {
+  background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
+}
+
+/* 画廊头部样式 */
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gallery-header h1 {
+  color: white;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.user-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.current-user {
+  color: white;
+  font-weight: 500;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.btn-small:hover {
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 1;
+}
+
+.background-select {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  backdrop-filter: blur(10px);
+}
+
+.background-select option {
+  background: #333;
+  color: white;
+}
+
+.btn-logout {
+  background: rgba(255, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 0, 0, 0.9);
+  opacity: 1;
+}
+
+/* 轮播容器样式 */
+.slideshow-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: white;
+  font-size: 20px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.empty-state p {
+  margin: 10px 0;
+}
+
+/* 轮播样式 */
+.slideshow {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.slideshow-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: all 1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide.active {
+  opacity: 1;
+}
+
+/* 不同过渡效果 */
+.slideshow.fade .slide {
+  transition: opacity 1s ease;
+}
+
+.slideshow.fade .slide.active {
+  opacity: 1;
+}
+
+.slideshow.slide .slide {
+  transform: translateX(100%);
+  transition: transform 1s ease;
+}
+
+.slideshow.slide .slide.active {
+  transform: translateX(0);
+}
+
+.slideshow.slide .slide.active ~ .slide {
+  transform: translateX(100%);
+}
+
+.slideshow.zoom .slide {
+  transform: scale(0.8);
+  transition: all 1s ease;
+}
+
+.slideshow.zoom .slide.active {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.slide img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* 导航按钮样式 */
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+}
+
+.nav-btn.prev {
+  left: 20px;
+}
+
+.nav-btn.next {
+  right: 20px;
+}
+
+/* 播放/暂停按钮样式 */
+.play-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.play-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+}
+
+/* 指示器样式 */
+.indicators {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+}
+
+.indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.indicator:hover {
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+}
+
+.indicator.active {
+  background: white;
+  width: 30px;
+  border-radius: 6px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .login-form {
+    margin: 20px;
+    padding: 30px;
+  }
+  
+  .admin-panel {
+    margin: 10px;
+    padding: 15px;
+  }
+  
+  .image-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+  
+  .gallery-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .user-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .play-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  
+  .indicator {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .indicator.active {
+    width: 25px;
+  }
+}
+
+@media (max-width: 480px) {
+  .slideshow-container {
+    height: calc(100vh - 250px);
+  }
+  
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .user-controls {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* 访客界面样式 - 同步码表单 */
+.sync-form {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  margin: 20px auto;
+  max-width: 500px;
+  text-align: center;
+}
+
+.sync-form h3 {
+  color: white;
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.sync-code-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  box-sizing: border-box;
+}
+
+.sync-code-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.sync-code-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-sync {
+  background: #667eea;
+  color: white;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  min-width: 120px;
+}
+
+.btn-sync:hover {
+  background: #5a67d8;
+  opacity: 1;
+}
+
+.last-sync-time {
+  margin-top: 15px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sync-status {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.sync-status.success {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+.sync-status.error {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+}
+
+/* 响应式设计下的同步功能样式 */
+@media (max-width: 768px) {
+  .sync-code {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  
+  .sync-form {
+    margin: 15px;
+    padding: 15px;
+  }
+  
+  .sync-code-input {
+    font-size: 14px;
+    padding: 10px;
+  }
+  
+  .btn-sync {
+    font-size: 14px;
+    padding: 10px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sync-code-section {
+    padding: 10px;
+  }
+  
+  .sync-code {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  
+  .sync-instructions {
+    font-size: 12px;
+  }
+}

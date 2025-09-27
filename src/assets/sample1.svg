@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#87CEEB"/>
+  <circle cx="400" cy="150" r="100" fill="#FFD700"/>
+  <path d="M0,400 L400,100 L800,400 Z" fill="#228B22"/>
+  <text x="400" y="450" font-family="Arial" font-size="40" fill="white" text-anchor="middle">照片回忆</text>
+</svg>
