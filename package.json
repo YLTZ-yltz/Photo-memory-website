@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://yltz-yltz.github.io/Photo-memory-website/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
