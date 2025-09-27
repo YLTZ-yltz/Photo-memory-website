@@ -119,27 +119,32 @@ function App() {
 
   // 生成同步码
   const generateSyncCode = () => {
-    // 创建包含所有必要数据的对象
-    const syncData = {
-      images: images,
-      settings: {
-        playInterval: playInterval,
-        transitionEffect: transitionEffect,
-        backgroundStyle: backgroundStyle,
-        lastSyncTime: Date.now()
-      }
-    };
-    
-    // 将数据转换为Base64编码的字符串
-    const jsonData = JSON.stringify(syncData);
-    const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
-    
-    // 截取部分作为同步码，使其更易于输入
-    const code = base64Data.substring(0, 24).replace(/[^a-zA-Z0-9]/g, '');
-    setSyncCode(code);
-    
-    // 存储完整的同步数据，用于访客设备同步
-    localStorage.setItem('syncData', base64Data);
+    try {
+      // 创建包含所有必要数据的对象，但不包含完整图片数据
+      const syncData = {
+        imageIds: images.map(img => ({ id: img.id, name: img.name })),
+        settings: {
+          playInterval: playInterval,
+          transitionEffect: transitionEffect,
+          backgroundStyle: backgroundStyle,
+          lastSyncTime: Date.now()
+        }
+      };
+      
+      // 将数据转换为Base64编码的字符串
+      const jsonData = JSON.stringify(syncData);
+      const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
+      
+      // 截取部分作为同步码，使其更易于输入
+      const code = base64Data.substring(0, 24).replace(/[^a-zA-Z0-9]/g, '');
+      setSyncCode(code);
+      
+      // 存储完整的同步数据，用于访客设备同步
+      localStorage.setItem('syncData', base64Data);
+    } catch (error) {
+      console.error('生成同步码时出错:', error);
+      // 即使出错也继续执行，避免应用崩溃
+    }
   };
 
   // 通过同步码同步数据
@@ -154,12 +159,14 @@ function App() {
         const jsonData = decodeURIComponent(escape(atob(allSyncData)));
         const syncData = JSON.parse(jsonData);
         
-        // 更新本地数据
+        // 更新本地数据 - 保留原有逻辑作为向后兼容
+        // 注意：现在同步数据中不再包含完整图片URL，所以不再更新图片数据
         if (syncData.images) {
           setImages(syncData.images);
           localStorage.setItem('galleryImages', JSON.stringify(syncData.images));
         }
         
+        // 更新设置
         if (syncData.settings) {
           if (syncData.settings.playInterval) {
             setPlayInterval(syncData.settings.playInterval);
