@@ -122,7 +122,7 @@ function App() {
     try {
       // 创建包含所有必要数据的对象，包含完整图片数据
       const syncData = {
-        images: images, // 包含完整图片数据
+        images: images,
         settings: {
           playInterval: playInterval,
           transitionEffect: transitionEffect,
@@ -131,27 +131,42 @@ function App() {
         }
       };
       
-      // 使用标准JSON序列化，保证兼容性
+      // 优化1: 使用更紧凑的JSON字符串（移除空格）
       const jsonData = JSON.stringify(syncData);
       
-      // 使用标准的base64编码方式
-      const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
+      // 优化2: 使用URL安全的base64编码并移除填充字符
+      let base64Data = btoa(unescape(encodeURIComponent(jsonData)));
+      // 替换URL不安全的字符并移除填充
+      const safeBase64 = base64Data
+        .replace(/\+/g, '-')  // 将'+'替换为'-'
+        .replace(/\//g, '_')  // 将'/'替换为'_'
+        .replace(/=+$/, '');  // 移除末尾的'='填充字符
       
-      setSyncCode(base64Data);
+      setSyncCode(safeBase64);
       
       // 存储到本地
-      localStorage.setItem('syncData', base64Data);
+      localStorage.setItem('syncData', safeBase64);
     } catch (error) {
       console.error('生成同步码时出错:', error);
       // 即使出错也继续执行，避免应用崩溃
     }
   };
 
-  // 通过同步码同步数据
+  // 通过同步码同步数据（兼容优化版和旧版同步码）
   const syncDataWithCode = (code) => {
     try {
+      // 处理优化后的同步码：恢复URL安全字符为标准base64字符，并添加必要的填充
+      let safeCode = code;
+      
+      // 将'-'恢复为'+'，'_'恢复为'/'
+      safeCode = safeCode.replace(/-/g, '+').replace(/_/g, '/');
+      
+      // 添加必要的填充字符
+      const padding = '='.repeat((4 - safeCode.length % 4) % 4);
+      safeCode += padding;
+      
       // 解码同步码获取数据
-      const jsonData = decodeURIComponent(escape(atob(code)));
+      const jsonData = decodeURIComponent(escape(atob(safeCode)));
       const syncData = JSON.parse(jsonData);
       
       // 更新图片数据
