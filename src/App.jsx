@@ -120,9 +120,9 @@ function App() {
   // 生成同步码
   const generateSyncCode = () => {
     try {
-      // 创建包含所有必要数据的对象，但不包含完整图片数据
+      // 创建包含所有必要数据的对象，包含完整图片数据
       const syncData = {
-        imageIds: images.map(img => ({ id: img.id, name: img.name })),
+        images: images, // 包含完整图片数据
         settings: {
           playInterval: playInterval,
           transitionEffect: transitionEffect,
@@ -135,11 +135,10 @@ function App() {
       const jsonData = JSON.stringify(syncData);
       const base64Data = btoa(unescape(encodeURIComponent(jsonData)));
       
-      // 截取部分作为同步码，使其更易于输入
-      const code = base64Data.substring(0, 24).replace(/[^a-zA-Z0-9]/g, '');
-      setSyncCode(code);
+      // 同步码就是完整的base64数据
+      setSyncCode(base64Data);
       
-      // 存储完整的同步数据，用于访客设备同步
+      // 也可以存储一份到本地，方便后续使用
       localStorage.setItem('syncData', base64Data);
     } catch (error) {
       console.error('生成同步码时出错:', error);
@@ -150,46 +149,38 @@ function App() {
   // 通过同步码同步数据
   const syncDataWithCode = (code) => {
     try {
-      // 在本地存储中查找对应的完整同步数据
-      const allSyncData = localStorage.getItem('syncData') || '';
+      // 直接解码输入的同步码（现在同步码本身包含完整数据）
+      const jsonData = decodeURIComponent(escape(atob(code)));
+      const syncData = JSON.parse(jsonData);
       
-      // 检查同步码是否匹配
-      if (allSyncData && allSyncData.startsWith(code)) {
-        // 解码数据
-        const jsonData = decodeURIComponent(escape(atob(allSyncData)));
-        const syncData = JSON.parse(jsonData);
-        
-        // 更新本地数据 - 保留原有逻辑作为向后兼容
-        // 注意：现在同步数据中不再包含完整图片URL，所以不再更新图片数据
-        if (syncData.images) {
-          setImages(syncData.images);
-          localStorage.setItem('galleryImages', JSON.stringify(syncData.images));
-        }
-        
-        // 更新设置
-        if (syncData.settings) {
-          if (syncData.settings.playInterval) {
-            setPlayInterval(syncData.settings.playInterval);
-            localStorage.setItem('playInterval', syncData.settings.playInterval);
-          }
-          if (syncData.settings.transitionEffect) {
-            setTransitionEffect(syncData.settings.transitionEffect);
-            localStorage.setItem('transitionEffect', syncData.settings.transitionEffect);
-          }
-          if (syncData.settings.backgroundStyle) {
-            setBackgroundStyle(syncData.settings.backgroundStyle);
-            localStorage.setItem('backgroundStyle', syncData.settings.backgroundStyle);
-          }
-        }
-        
-        setLastSyncTime(Date.now());
-        alert('同步成功！');
-      } else {
-        alert('同步码无效，请检查后重试。');
+      // 更新图片数据
+      if (syncData.images && syncData.images.length > 0) {
+        setImages(syncData.images);
+        localStorage.setItem('galleryImages', JSON.stringify(syncData.images));
+        console.log('成功同步了图片数据');
       }
+      
+      // 更新设置
+      if (syncData.settings) {
+        if (syncData.settings.playInterval) {
+          setPlayInterval(syncData.settings.playInterval);
+          localStorage.setItem('playInterval', syncData.settings.playInterval);
+        }
+        if (syncData.settings.transitionEffect) {
+          setTransitionEffect(syncData.settings.transitionEffect);
+          localStorage.setItem('transitionEffect', syncData.settings.transitionEffect);
+        }
+        if (syncData.settings.backgroundStyle) {
+          setBackgroundStyle(syncData.settings.backgroundStyle);
+          localStorage.setItem('backgroundStyle', syncData.settings.backgroundStyle);
+        }
+      }
+      
+      setLastSyncTime(Date.now());
+      alert('同步成功！');
     } catch (error) {
       console.error('同步数据时出错:', error);
-      alert('同步失败，请重试。');
+      alert('同步失败，请检查同步码是否正确。');
     }
   };
 
@@ -547,7 +538,7 @@ function App() {
                   onChange={(e) => setInputSyncCode(e.target.value)}
                   placeholder="请输入从管理员获取的同步码"
                   className="sync-code-input"
-                  maxLength={24}
+                  style={{width: '100%', minHeight: '40px'}}
                 />
                 <button type="submit" className="btn-sync">
                   同步照片
