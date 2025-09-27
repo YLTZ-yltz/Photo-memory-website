@@ -78,16 +78,63 @@ function App() {
     localStorage.removeItem('user');
   };
 
+  // 图片压缩处理函数
+  const compressImage = (file, maxWidth = 1000, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        img.src = event.target.result;
+        
+        img.onload = () => {
+          // 创建canvas用于压缩
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // 计算压缩后的尺寸，保持宽高比
+          let newWidth = img.width;
+          let newHeight = img.height;
+          
+          if (newWidth > maxWidth) {
+            const ratio = maxWidth / newWidth;
+            newWidth = maxWidth;
+            newHeight = Math.floor(newHeight * ratio);
+          }
+          
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+          
+          // 在canvas上绘制图片
+          ctx.drawImage(img, 0, 0, newWidth, newHeight);
+          
+          // 转换为DataURL，质量参数控制压缩率
+          canvas.toBlob((blob) => {
+            const blobReader = new FileReader();
+            blobReader.onload = (e) => {
+              resolve(e.target.result);
+            };
+            blobReader.readAsDataURL(blob);
+          }, 'image/jpeg', quality);
+        };
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  };
+
   // 图片上传处理
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
+      try {
+        // 压缩图片
+        const compressedDataUrl = await compressImage(file);
+        
         const newImage = {
-          id: Date.now(),
-          url: event.target.result,
-          name: file.name
+          i: Date.now(), // 使用简写键名
+          u: compressedDataUrl, // url的简写
+          n: file.name // name的简写
         };
         const updatedImages = [...images, newImage];
         setImages(updatedImages);
@@ -96,14 +143,31 @@ function App() {
         if (isAdmin) {
           generateSyncCode();
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('图片压缩失败:', error);
+        // 如果压缩失败，使用原始图片
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const newImage = {
+            i: Date.now(),
+            u: event.target.result,
+            n: file.name
+          };
+          const updatedImages = [...images, newImage];
+          setImages(updatedImages);
+          localStorage.setItem('galleryImages', JSON.stringify(updatedImages));
+          if (isAdmin) {
+            generateSyncCode();
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
   // 删除图片
   const handleDeleteImage = (imageId) => {
-    const updatedImages = images.filter(image => image.id !== imageId);
+    const updatedImages = images.filter(image => image.i !== imageId);
     setImages(updatedImages);
     localStorage.setItem('galleryImages', JSON.stringify(updatedImages));
     if (images.length === 1) {
@@ -117,24 +181,29 @@ function App() {
     }
   };
 
-  // 生成同步码（优化版）
+  // 生成同步码（高度优化版）
   const generateSyncCode = () => {
     try {
-      // 创建包含所有必要数据的对象，包含完整图片数据
+      // 过滤图片数组，移除null或undefined值
+      const filteredImages = images.filter(img => img && img.i && img.u && img.n);
+      
+      // 创建包含所有必要数据的对象，使用简写键名
       const syncData = {
-        images: images,
-        settings: {
-          playInterval: playInterval,
-          transitionEffect: transitionEffect,
-          backgroundStyle: backgroundStyle,
-          lastSyncTime: Date.now()
+        i: filteredImages, // images的简写
+        s: {
+          // 仅保留非null和非undefined的设置值
+          ...(playInterval !== null && playInterval !== undefined && { p: playInterval }), // playInterval的简写
+          ...(transitionEffect !== null && transitionEffect !== undefined && { t: transitionEffect }), // transitionEffect的简写
+          ...(backgroundStyle !== null && backgroundStyle !== undefined && { b: backgroundStyle }), // backgroundStyle的简写
+          l: Date.now() // lastSyncTime的简写
         }
       };
       
-      // 优化1: 使用更紧凑的JSON字符串（移除空格）
+      // 优化1: 使用更紧凑的JSON字符串
       const jsonData = JSON.stringify(syncData);
       
-      // 优化2: 使用URL安全的base64编码并移除填充字符
+      // 优化2: 使用更高效的数据编码
+      // 使用base64编码
       let base64Data = btoa(unescape(encodeURIComponent(jsonData)));
       // 替换URL不安全的字符并移除填充
       const safeBase64 = base64Data
@@ -146,9 +215,35 @@ function App() {
       
       // 存储到本地
       localStorage.setItem('syncData', safeBase64);
+      
+      // 记录同步码大小以便调试
+      console.log('同步码大小:', safeBase64.length, '字符');
     } catch (error) {
       console.error('生成同步码时出错:', error);
       // 即使出错也继续执行，避免应用崩溃
+      
+      // 生成备用最小化同步码（只包含必要的图片数据）
+      try {
+        const minimalData = {
+          i: images
+            .filter(img => img && img.i && img.u)
+            .map(img => ({ i: img.i, u: img.u })),
+          t: Date.now()
+        };
+        
+        const minimalJson = JSON.stringify(minimalData);
+        let minimalBase64 = btoa(unescape(encodeURIComponent(minimalJson)));
+        const minimalSafeBase64 = minimalBase64
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+        
+        setSyncCode(minimalSafeBase64);
+        localStorage.setItem('syncData', minimalSafeBase64);
+        console.log('已生成最小化同步码作为备用方案，大小:', minimalSafeBase64.length, '字符');
+      } catch (secondaryError) {
+        console.error('备用同步码生成也失败:', secondaryError);
+      }
     }
   };
 
@@ -169,17 +264,67 @@ function App() {
       const jsonData = decodeURIComponent(escape(atob(safeCode)));
       const syncData = JSON.parse(jsonData);
       
-      // 更新图片数据
-      if (syncData.images && syncData.images.length > 0) {
-        setImages(syncData.images);
-        localStorage.setItem('galleryImages', JSON.stringify(syncData.images));
-        console.log('成功同步了图片数据');
-      } else {
+      // 检查数据有效性
+      let hasValidImages = false;
+      
+      // 更新图片数据（兼容新旧格式和最小化格式）
+      if (syncData.i && syncData.i.length > 0) {
+        // 处理新版格式（简写键名）和最小化格式
+        const validImages = syncData.i.filter(img => img && img.i && img.u);
+        
+        if (validImages.length > 0) {
+          // 为最小化图片数据添加缺失的键名，确保组件能正常渲染
+          const completeImages = validImages.map(img => ({
+            i: img.i,
+            u: img.u,
+            n: img.n || `照片${img.i}` // 如果没有name，使用默认名称
+          }));
+          
+          setImages(completeImages);
+          localStorage.setItem('galleryImages', JSON.stringify(completeImages));
+          console.log('成功同步了图片数据，共', completeImages.length, '张');
+          hasValidImages = true;
+        }
+      } else if (syncData.images && syncData.images.length > 0) {
+        // 兼容旧版格式
+        const validImages = syncData.images.filter(img => img && img.id && img.url);
+        
+        if (validImages.length > 0) {
+          // 转换为新版格式（简写键名）
+          const convertedImages = validImages.map(img => ({
+            i: img.id,
+            u: img.url,
+            n: img.name || `照片${img.id}`
+          }));
+          
+          setImages(convertedImages);
+          localStorage.setItem('galleryImages', JSON.stringify(convertedImages));
+          console.log('成功同步了图片数据（旧版格式），共', convertedImages.length, '张');
+          hasValidImages = true;
+        }
+      }
+      
+      if (!hasValidImages) {
         console.warn('同步数据中不包含有效图片');
       }
       
-      // 更新设置
-      if (syncData.settings) {
+      // 更新设置（兼容新旧格式）
+      if (syncData.s) {
+        // 处理新版格式（简写键名）
+        if (syncData.s.p) {
+          setPlayInterval(syncData.s.p);
+          localStorage.setItem('playInterval', syncData.s.p);
+        }
+        if (syncData.s.t) {
+          setTransitionEffect(syncData.s.t);
+          localStorage.setItem('transitionEffect', syncData.s.t);
+        }
+        if (syncData.s.b) {
+          setBackgroundStyle(syncData.s.b);
+          localStorage.setItem('backgroundStyle', syncData.s.b);
+        }
+      } else if (syncData.settings) {
+        // 兼容旧版格式
         if (syncData.settings.playInterval) {
           setPlayInterval(syncData.settings.playInterval);
           localStorage.setItem('playInterval', syncData.settings.playInterval);
@@ -328,19 +473,19 @@ function App() {
       // 如果本地没有图片数据，加载示例图片
       const sampleImages = [
         {
-          id: 1,
-          url: sample1,
-          name: '示例图片1'
+          i: 1,
+          u: sample1,
+          n: '示例图片1'
         },
         {
-          id: 2,
-          url: sample2,
-          name: '示例图片2'
+          i: 2,
+          u: sample2,
+          n: '示例图片2'
         },
         {
-          id: 3,
-          url: sample3,
-          name: '示例图片3'
+          i: 3,
+          u: sample3,
+          n: '示例图片3'
         }
       ];
       setImages(sampleImages);
@@ -597,11 +742,11 @@ function App() {
             <div className="slideshow-inner">
               {images.map((image, index) => (
                 <div
-                  key={image.id}
+                  key={image.i}
                   className={`slide ${index === currentImageIndex ? 'active' : ''}`}
                   style={{ transition: transitionEffect === 'fade' ? 'opacity 1s ease' : 'transform 1s ease' }}
                 >
-                  <img src={image.url} alt={`照片 ${index + 1}`} />
+                  <img src={image.u} alt={`照片 ${index + 1}`} />
                 </div>
               ))}
             </div>
