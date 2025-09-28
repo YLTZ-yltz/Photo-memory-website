@@ -123,45 +123,133 @@ function App() {
     });
   };
 
+  // 图片上传队列状态
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  const [activeUploads, setActiveUploads] = useState(0);
+  const MAX_CONCURRENT_UPLOADS = 3; // 同时处理的最大图片数量
+
   // 图片上传处理
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      try {
-        // 压缩图片
-        const compressedDataUrl = await compressImage(file);
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // 显示上传提示
+    alert(`开始上传 ${files.length} 张照片，可能需要一些时间...`);
+
+    // 将所有文件添加到上传队列
+    const newQueueItems = files.map(file => ({
+      file, 
+      id: Date.now() + Math.random() // 生成唯一ID
+    }));
+
+    setUploadQueue(prevQueue => [...prevQueue, ...newQueueItems]);
+    
+    // 处理上传队列
+    processUploadQueue();
+    
+    // 清空文件输入，以便再次选择相同文件
+    e.target.value = '';
+  };
+
+  // 处理上传队列
+  const processUploadQueue = async () => {
+    // 如果已经在处理队列或队列为空，则退出
+    if (isProcessingQueue || uploadQueue.length === 0) return;
+
+    setIsProcessingQueue(true);
+    
+    try {
+      while (uploadQueue.length > 0 && activeUploads < MAX_CONCURRENT_UPLOADS) {
+        // 取出队列中的一个文件
+        const queueItem = uploadQueue[0];
+        setUploadQueue(prevQueue => prevQueue.slice(1));
         
+        // 增加活跃上传计数
+        setActiveUploads(prev => prev + 1);
+        
+        // 上传单个文件
+        await processSingleImage(queueItem.file);
+        
+        // 减少活跃上传计数
+        setActiveUploads(prev => prev - 1);
+        
+        // 小暂停，防止UI卡顿
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      console.error('处理上传队列时出错:', error);
+    } finally {
+      // 检查是否还有待处理的文件
+      if (uploadQueue.length > 0) {
+        // 继续处理队列
+        setIsProcessingQueue(false);
+        setTimeout(processUploadQueue, 200);
+      } else {
+        // 队列为空，完成处理
+        setIsProcessingQueue(false);
+        alert('所有照片上传完成！');
+        
+        // 如果是管理员，在所有图片上传完成后重新生成同步码
+        if (isAdmin) {
+          setTimeout(generateSyncCode, 500);
+        }
+      }
+    }
+  };
+
+  // 处理单个图片文件
+  const processSingleImage = async (file) => {
+    try {
+      // 内存使用检查
+      if (typeof window.performance !== 'undefined' && window.performance.memory) {
+        const memory = window.performance.memory;
+        const usedPercent = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
+        
+        // 如果内存使用超过80%，暂停一下
+        if (usedPercent > 80) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      // 压缩图片
+      const compressedDataUrl = await compressImage(file);
+      
+      // 使用setTimeout确保状态更新不会阻塞UI
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      setImages(prevImages => {
         const newImage = {
           i: Date.now(), // 使用简写键名
           u: compressedDataUrl, // url的简写
           n: file.name // name的简写
         };
-        const updatedImages = [...images, newImage];
-        setImages(updatedImages);
+        const updatedImages = [...prevImages, newImage];
         localStorage.setItem('galleryImages', JSON.stringify(updatedImages));
-        // 图片上传后生成新的同步码
-        if (isAdmin) {
-          generateSyncCode();
-        }
-      } catch (error) {
-        console.error('图片压缩失败:', error);
-        // 如果压缩失败，使用原始图片
+        return updatedImages;
+      });
+      
+    } catch (error) {
+      console.error('处理图片时出错:', error);
+      // 如果压缩失败，使用原始图片
+      await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => {
-          const newImage = {
-            i: Date.now(),
-            u: event.target.result,
-            n: file.name
-          };
-          const updatedImages = [...images, newImage];
-          setImages(updatedImages);
-          localStorage.setItem('galleryImages', JSON.stringify(updatedImages));
-          if (isAdmin) {
-            generateSyncCode();
-          }
+          setImages(prevImages => {
+            const newImage = {
+              i: Date.now(),
+              u: event.target.result,
+              n: file.name
+            };
+            const updatedImages = [...prevImages, newImage];
+            localStorage.setItem('galleryImages', JSON.stringify(updatedImages));
+            return updatedImages;
+          });
+          resolve();
         };
+        reader.onerror = reject;
         reader.readAsDataURL(file);
-      }
+      });
     }
   };
 
@@ -181,76 +269,154 @@ function App() {
     }
   };
 
-  // 生成同步码（高度优化版）
+  // 生成同步码（分片版）
   const generateSyncCode = () => {
     try {
       // 过滤图片数组，移除null或undefined值
       const filteredImages = images.filter(img => img && img.i && img.u && img.n);
       
-      // 创建包含所有必要数据的对象，使用简写键名
-      const syncData = {
-        i: filteredImages, // images的简写
-        s: {
-          // 仅保留非null和非undefined的设置值
-          ...(playInterval !== null && playInterval !== undefined && { p: playInterval }), // playInterval的简写
-          ...(transitionEffect !== null && transitionEffect !== undefined && { t: transitionEffect }), // transitionEffect的简写
-          ...(backgroundStyle !== null && backgroundStyle !== undefined && { b: backgroundStyle }), // backgroundStyle的简写
-          l: Date.now() // lastSyncTime的简写
-        }
-      };
+      // 对于大量图片，采用分片策略
+      const MAX_IMAGES_PER_SLICE = 10; // 每片最大图片数量
+      const totalSlices = Math.ceil(filteredImages.length / MAX_IMAGES_PER_SLICE);
       
-      // 优化1: 使用更紧凑的JSON字符串
-      const jsonData = JSON.stringify(syncData);
+      // 生成一个唯一的批次ID，用于标识同一组同步码
+      const batchId = Date.now().toString(36).substr(2, 9);
       
-      // 优化2: 使用更高效的数据编码
-      // 使用base64编码
-      let base64Data = btoa(unescape(encodeURIComponent(jsonData)));
-      // 替换URL不安全的字符并移除填充
-      const safeBase64 = base64Data
-        .replace(/\+/g, '-')  // 将'+'替换为'-'
-        .replace(/\//g, '_')  // 将'/'替换为'_'
-        .replace(/=+$/, '');  // 移除末尾的'='填充字符
-      
-      setSyncCode(safeBase64);
-      
-      // 存储到本地
-      localStorage.setItem('syncData', safeBase64);
-      
-      // 记录同步码大小以便调试
-      console.log('同步码大小:', safeBase64.length, '字符');
-    } catch (error) {
-      console.error('生成同步码时出错:', error);
-      // 即使出错也继续执行，避免应用崩溃
-      
-      // 生成备用最小化同步码（只包含必要的图片数据）
-      try {
-        const minimalData = {
-          i: images
-            .filter(img => img && img.i && img.u)
-            .map(img => ({ i: img.i, u: img.u })),
-          t: Date.now()
+      if (totalSlices === 1) {
+        // 单分片情况
+        const syncData = {
+          i: filteredImages, // images的简写
+          s: {
+            // 仅保留非null和非undefined的设置值
+            ...(playInterval !== null && playInterval !== undefined && { p: playInterval }), // playInterval的简写
+            ...(transitionEffect !== null && transitionEffect !== undefined && { t: transitionEffect }), // transitionEffect的简写
+            ...(backgroundStyle !== null && backgroundStyle !== undefined && { b: backgroundStyle }), // backgroundStyle的简写
+            l: Date.now() // lastSyncTime的简写
+          },
+          b: batchId, // 批次ID
+          c: 1, // 当前分片
+          t: 1  // 总分片
         };
         
-        const minimalJson = JSON.stringify(minimalData);
-        let minimalBase64 = btoa(unescape(encodeURIComponent(minimalJson)));
-        const minimalSafeBase64 = minimalBase64
+        const jsonData = JSON.stringify(syncData);
+        let base64Data = btoa(unescape(encodeURIComponent(jsonData)));
+        const safeBase64 = base64Data
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
           .replace(/=+$/, '');
         
-        setSyncCode(minimalSafeBase64);
-        localStorage.setItem('syncData', minimalSafeBase64);
-        console.log('已生成最小化同步码作为备用方案，大小:', minimalSafeBase64.length, '字符');
-      } catch (secondaryError) {
-        console.error('备用同步码生成也失败:', secondaryError);
+        setSyncCode(safeBase64);
+        localStorage.setItem('syncData', safeBase64);
+        console.log('生成单分片同步码，大小:', safeBase64.length, '字符');
+        
+        // 清除之前可能存在的分片数据
+        localStorage.removeItem('syncSlices');
+      } else {
+        // 多分片情况
+        const slices = [];
+        
+        for (let i = 0; i < totalSlices; i++) {
+          const sliceImages = filteredImages.slice(i * MAX_IMAGES_PER_SLICE, (i + 1) * MAX_IMAGES_PER_SLICE);
+          
+          const syncData = {
+            i: sliceImages, // 仅包含当前分片的图片
+            s: i === 0 ? {
+              // 只在第一个分片包含设置信息
+              ...(playInterval !== null && playInterval !== undefined && { p: playInterval }),
+              ...(transitionEffect !== null && transitionEffect !== undefined && { t: transitionEffect }),
+              ...(backgroundStyle !== null && backgroundStyle !== undefined && { b: backgroundStyle }),
+              l: Date.now()
+            } : undefined,
+            b: batchId, // 批次ID
+            c: i + 1, // 当前分片（从1开始）
+            t: totalSlices  // 总分片
+          };
+          
+          const jsonData = JSON.stringify(syncData);
+          let base64Data = btoa(unescape(encodeURIComponent(jsonData)));
+          const safeBase64 = base64Data
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+          
+          slices.push(safeBase64);
+          console.log(`生成分片 ${i + 1}/${totalSlices}，大小:`, safeBase64.length, '字符');
+        }
+        
+        // 保存所有分片到localStorage
+        localStorage.setItem('syncSlices', JSON.stringify(slices));
+        
+        // 显示第一个分片
+        setSyncCode(slices[0]);
+        localStorage.setItem('syncData', slices[0]);
+        
+        // 提示用户这是一个多分片同步码
+        alert(`共生成 ${totalSlices} 个同步码，请依次分享给访客进行完整同步。当前显示的是分片 1/${totalSlices}。`);
       }
+    } catch (error) {
+      console.error('生成同步码时出错:', error);
+      alert('生成同步码失败，请稍后重试。');
     }
   };
 
-  // 通过同步码同步数据（兼容优化版和旧版同步码）
+  // 切换到下一个分片
+  const nextSyncSlice = () => {
+    try {
+      const syncSlicesStr = localStorage.getItem('syncSlices');
+      if (!syncSlicesStr) {
+        alert('没有更多分片');
+        return;
+      }
+      
+      const syncSlices = JSON.parse(syncSlicesStr);
+      const currentSyncCode = localStorage.getItem('syncData');
+      const currentIndex = syncSlices.indexOf(currentSyncCode);
+      
+      if (currentIndex === -1 || currentIndex >= syncSlices.length - 1) {
+        alert('已经是最后一个分片');
+        return;
+      }
+      
+      const nextSlice = syncSlices[currentIndex + 1];
+      setSyncCode(nextSlice);
+      localStorage.setItem('syncData', nextSlice);
+      alert(`已切换到分片 ${currentIndex + 2}/${syncSlices.length}`);
+    } catch (error) {
+      console.error('切换分片时出错:', error);
+    }
+  };
+
+  // 切换到上一个分片
+  const prevSyncSlice = () => {
+    try {
+      const syncSlicesStr = localStorage.getItem('syncSlices');
+      if (!syncSlicesStr) {
+        alert('没有更多分片');
+        return;
+      }
+      
+      const syncSlices = JSON.parse(syncSlicesStr);
+      const currentSyncCode = localStorage.getItem('syncData');
+      const currentIndex = syncSlices.indexOf(currentSyncCode);
+      
+      if (currentIndex <= 0) {
+        alert('已经是第一个分片');
+        return;
+      }
+      
+      const prevSlice = syncSlices[currentIndex - 1];
+      setSyncCode(prevSlice);
+      localStorage.setItem('syncData', prevSlice);
+      alert(`已切换到分片 ${currentIndex}/${syncSlices.length}`);
+    } catch (error) {
+      console.error('切换分片时出错:', error);
+    }
+  };
+
+  // 通过同步码同步数据（兼容分片和非分片同步码）
   const syncDataWithCode = (code) => {
     try {
-      // 处理优化后的同步码：恢复URL安全字符为标准base64字符，并添加必要的填充
+      // 处理同步码：恢复URL安全字符为标准base64字符，并添加必要的填充
       let safeCode = code;
       
       // 将'-'恢复为'+'，'_'恢复为'/'
@@ -264,78 +430,167 @@ function App() {
       const jsonData = decodeURIComponent(escape(atob(safeCode)));
       const syncData = JSON.parse(jsonData);
       
-      // 检查数据有效性
-      let hasValidImages = false;
+      // 检查是否为分片同步码
+      const isSlice = syncData.b && syncData.c && syncData.t;
       
-      // 更新图片数据（兼容新旧格式和最小化格式）
-      if (syncData.i && syncData.i.length > 0) {
-        // 处理新版格式（简写键名）和最小化格式
-        const validImages = syncData.i.filter(img => img && img.i && img.u);
+      if (isSlice) {
+        // 分片同步逻辑
+        const { b: batchId, c: currentSlice, t: totalSlices } = syncData;
         
-        if (validImages.length > 0) {
-          // 为最小化图片数据添加缺失的键名，确保组件能正常渲染
-          const completeImages = validImages.map(img => ({
-            i: img.i,
-            u: img.u,
-            n: img.n || `照片${img.i}` // 如果没有name，使用默认名称
-          }));
-          
-          setImages(completeImages);
-          localStorage.setItem('galleryImages', JSON.stringify(completeImages));
-          console.log('成功同步了图片数据，共', completeImages.length, '张');
-          hasValidImages = true;
-        }
-      } else if (syncData.images && syncData.images.length > 0) {
-        // 兼容旧版格式
-        const validImages = syncData.images.filter(img => img && img.id && img.url);
+        // 获取已同步的分片数据或创建新的
+        const syncedSlicesKey = `synced_slices_${batchId}`;
+        const existingSyncedSlicesStr = localStorage.getItem(syncedSlicesKey);
+        const existingSyncedSlices = existingSyncedSlicesStr ? JSON.parse(existingSyncedSlicesStr) : {};
         
-        if (validImages.length > 0) {
-          // 转换为新版格式（简写键名）
-          const convertedImages = validImages.map(img => ({
-            i: img.id,
-            u: img.url,
-            n: img.name || `照片${img.id}`
-          }));
+        // 存储当前分片的数据
+        existingSyncedSlices[currentSlice] = {
+          images: syncData.i || [],
+          settings: syncData.s // 只在第一个分片有设置
+        };
+        
+        localStorage.setItem(syncedSlicesKey, JSON.stringify(existingSyncedSlices));
+        
+        // 检查是否所有分片都已同步
+        const isAllSlicesSynced = Object.keys(existingSyncedSlices).length === totalSlices;
+        
+        if (isAllSlicesSynced) {
+          // 所有分片都已同步，合并数据
+          let allImages = [];
+          let settings = null;
           
-          setImages(convertedImages);
-          localStorage.setItem('galleryImages', JSON.stringify(convertedImages));
-          console.log('成功同步了图片数据（旧版格式），共', convertedImages.length, '张');
-          hasValidImages = true;
+          // 收集所有分片的图片和设置
+          for (let i = 1; i <= totalSlices; i++) {
+            const sliceData = existingSyncedSlices[i];
+            if (sliceData) {
+              // 验证图片数据有效性
+              const validImages = (sliceData.images || []).filter(img => img && img.i && img.u);
+              
+              // 为图片数据添加缺失的键名
+              const completeImages = validImages.map(img => ({
+                i: img.i,
+                u: img.u,
+                n: img.n || `照片${img.i}`
+              }));
+              
+              allImages = [...allImages, ...completeImages];
+              
+              // 设置只会在第一个分片包含
+              if (i === 1 && sliceData.settings) {
+                settings = sliceData.settings;
+              }
+            }
+          }
+          
+          // 应用合并后的图片数据
+          if (allImages.length > 0) {
+            setImages(allImages);
+            localStorage.setItem('galleryImages', JSON.stringify(allImages));
+            console.log('成功合并并同步了所有分片的图片数据，共', allImages.length, '张');
+          } else {
+            console.warn('所有分片都同步完成，但没有找到有效图片');
+          }
+          
+          // 应用设置
+          if (settings) {
+            if (settings.p) {
+              setPlayInterval(settings.p);
+              localStorage.setItem('playInterval', settings.p);
+            }
+            if (settings.t) {
+              setTransitionEffect(settings.t);
+              localStorage.setItem('transitionEffect', settings.t);
+            }
+            if (settings.b) {
+              setBackgroundStyle(settings.b);
+              localStorage.setItem('backgroundStyle', settings.b);
+            }
+          }
+          
+          // 清除临时分片数据
+          localStorage.removeItem(syncedSlicesKey);
+          
+          // 提示用户同步完成
+          alert(`已成功完成 ${totalSlices} 个分片的同步，共同步了 ${allImages.length} 张照片！`);
+        } else {
+          // 还有分片未同步
+          const syncedCount = Object.keys(existingSyncedSlices).length;
+          alert(`已成功同步分片 ${currentSlice}/${totalSlices}，还需同步 ${totalSlices - syncedCount} 个分片。\n请继续输入下一个同步码。`);
         }
-      }
-      
-      if (!hasValidImages) {
-        console.warn('同步数据中不包含有效图片');
-      }
-      
-      // 更新设置（兼容新旧格式）
-      if (syncData.s) {
-        // 处理新版格式（简写键名）
-        if (syncData.s.p) {
-          setPlayInterval(syncData.s.p);
-          localStorage.setItem('playInterval', syncData.s.p);
+      } else {
+        // 非分片同步逻辑（兼容旧版）
+        // 检查数据有效性
+        let hasValidImages = false;
+        
+        // 更新图片数据（兼容新旧格式和最小化格式）
+        if (syncData.i && syncData.i.length > 0) {
+          // 处理新版格式（简写键名）和最小化格式
+          const validImages = syncData.i.filter(img => img && img.i && img.u);
+          
+          if (validImages.length > 0) {
+            // 为最小化图片数据添加缺失的键名，确保组件能正常渲染
+            const completeImages = validImages.map(img => ({
+              i: img.i,
+              u: img.u,
+              n: img.n || `照片${img.i}` // 如果没有name，使用默认名称
+            }));
+            
+            setImages(completeImages);
+            localStorage.setItem('galleryImages', JSON.stringify(completeImages));
+            console.log('成功同步了图片数据，共', completeImages.length, '张');
+            hasValidImages = true;
+          }
+        } else if (syncData.images && syncData.images.length > 0) {
+          // 兼容旧版格式
+          const validImages = syncData.images.filter(img => img && img.id && img.url);
+          
+          if (validImages.length > 0) {
+            // 转换为新版格式（简写键名）
+            const convertedImages = validImages.map(img => ({
+              i: img.id,
+              u: img.url,
+              n: img.name || `照片${img.id}`
+            }));
+            
+            setImages(convertedImages);
+            localStorage.setItem('galleryImages', JSON.stringify(convertedImages));
+            console.log('成功同步了图片数据（旧版格式），共', convertedImages.length, '张');
+            hasValidImages = true;
+          }
         }
-        if (syncData.s.t) {
-          setTransitionEffect(syncData.s.t);
-          localStorage.setItem('transitionEffect', syncData.s.t);
+        
+        if (!hasValidImages) {
+          console.warn('同步数据中不包含有效图片');
         }
-        if (syncData.s.b) {
-          setBackgroundStyle(syncData.s.b);
-          localStorage.setItem('backgroundStyle', syncData.s.b);
-        }
-      } else if (syncData.settings) {
-        // 兼容旧版格式
-        if (syncData.settings.playInterval) {
-          setPlayInterval(syncData.settings.playInterval);
-          localStorage.setItem('playInterval', syncData.settings.playInterval);
-        }
-        if (syncData.settings.transitionEffect) {
-          setTransitionEffect(syncData.settings.transitionEffect);
-          localStorage.setItem('transitionEffect', syncData.settings.transitionEffect);
-        }
-        if (syncData.settings.backgroundStyle) {
-          setBackgroundStyle(syncData.settings.backgroundStyle);
-          localStorage.setItem('backgroundStyle', syncData.settings.backgroundStyle);
+        
+        // 更新设置（兼容新旧格式）
+        if (syncData.s) {
+          // 处理新版格式（简写键名）
+          if (syncData.s.p) {
+            setPlayInterval(syncData.s.p);
+            localStorage.setItem('playInterval', syncData.s.p);
+          }
+          if (syncData.s.t) {
+            setTransitionEffect(syncData.s.t);
+            localStorage.setItem('transitionEffect', syncData.s.t);
+          }
+          if (syncData.s.b) {
+            setBackgroundStyle(syncData.s.b);
+            localStorage.setItem('backgroundStyle', syncData.s.b);
+          }
+        } else if (syncData.settings) {
+          // 兼容旧版格式
+          if (syncData.settings.playInterval) {
+            setPlayInterval(syncData.settings.playInterval);
+            localStorage.setItem('playInterval', syncData.settings.playInterval);
+          }
+          if (syncData.settings.transitionEffect) {
+            setTransitionEffect(syncData.settings.transitionEffect);
+            localStorage.setItem('transitionEffect', syncData.settings.transitionEffect);
+          }
+          if (syncData.settings.backgroundStyle) {
+            setBackgroundStyle(syncData.settings.backgroundStyle);
+            localStorage.setItem('backgroundStyle', syncData.settings.backgroundStyle);
+          }
         }
       }
       
