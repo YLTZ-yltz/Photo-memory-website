@@ -1,7 +1,15 @@
 // 简单的Vite配置
-import react from '@vitejs/plugin-react'
-
+// 简化的Vite配置，确保GitHub Pages正确加载资源
 export default {
   base: '/Photo-memory-website/',
-  plugins: [react()]
+  build: {
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js'
+      }
+    }
+  }
 }
