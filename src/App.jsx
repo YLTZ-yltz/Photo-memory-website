@@ -250,6 +250,16 @@ class App extends Component {
     }
   };
 
+  // 切换账号功能
+  handleSwitchAccount = () => {
+    // 直接返回登录页面，但不清除localStorage中的用户信息
+    this.setState({
+      showLogin: true,
+      loginUsername: '',
+      loginPassword: ''
+    });
+  };
+
   // 登出处理
   handleLogout = () => {
     this.setState({
@@ -413,15 +423,39 @@ class App extends Component {
     const file = e.target.files[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const musicDataUrl = event.target.result;
-      this.setState({ backgroundMusic: musicDataUrl }, () => {
-        localStorage.setItem('backgroundMusic', musicDataUrl);
-        this.broadcastSyncNotification();
-      });
-    };
-    reader.readAsDataURL(file);
+    // 检查文件大小，限制为5MB以避免性能问题
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_SIZE) {
+      alert('音乐文件过大，请选择小于5MB的文件');
+      return;
+    }
+    
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const musicDataUrl = event.target.result;
+          this.setState({ backgroundMusic: musicDataUrl }, () => {
+            // 使用sessionStorage代替localStorage存储大型音乐文件
+            sessionStorage.setItem('backgroundMusic', musicDataUrl);
+            if (this.state.isAdmin) {
+              this.broadcastSyncNotification();
+            }
+          });
+        } catch (error) {
+          console.error('设置音乐时出错:', error);
+          alert('设置音乐失败，请重试');
+        }
+      };
+      reader.onerror = (error) => {
+        console.error('读取音乐文件时出错:', error);
+        alert('读取音乐文件失败，请重试');
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('上传音乐时出错:', error);
+      alert('上传音乐失败，请重试');
+    }
   };
 
   toggleMusic = () => {
@@ -830,10 +864,18 @@ class App extends Component {
     return (
       <div className="app">
         {/* 管理员面板 */}
-        {this.state.isAdmin && this.state.showAdminPanel && (
-          <div key="admin-panel" className="admin-panel-wrapper">
-            <div className="admin-panel">
-              <h3>管理员控制面板</h3>
+              {this.state.isAdmin && this.state.showAdminPanel && (
+                <div key="admin-panel" className="admin-panel-wrapper">
+                  <div className="admin-panel">
+                    <div className="admin-panel-header">
+                      <h3>管理员控制面板</h3>
+                      <button 
+                        className="btn-secondary btn-small"
+                        onClick={() => this.setState({ showAdminPanel: false })}
+                      >
+                        返回
+                      </button>
+                    </div>
               
               {/* 自动同步区域 */}
               <div className="admin-section">
@@ -1035,44 +1077,58 @@ class App extends Component {
             <div className="gallery-header">
               <h1>照片回忆</h1>
               <div className="user-controls">
-                <span className="current-user">当前用户: {this.state.currentUser}</span>
-                {this.state.backgroundMusic && (
-                  <button 
-                    className={`btn-small ${this.state.musicPlaying ? 'btn-active' : ''}`}
-                    onClick={this.toggleMusic}
-                  >
-                    {this.state.musicPlaying ? '暂停音乐' : '播放音乐'}
-                  </button>
-                )}
-                {!this.state.isAdmin && (
-                  <React.Fragment key="guest-controls">
-                    {/* 访客自动同步状态 */}
-                    <div className="sync-auto-status">
-                      <h3>自动同步状态</h3>
-                      <p className="sync-message">系统已启用自动同步，照片和设置将自动更新</p>
-                      {this.state.lastSyncTime > 0 && (
-                        <p className="last-sync-time">
-                          上次同步时间: {new Date(this.state.lastSyncTime).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
+                  <span className="current-user">当前用户: {this.state.currentUser}</span>
+                  {this.state.backgroundMusic && (
                     <button 
-                      className="btn-small btn-primary"
-                      onClick={this.handleLogout}
+                      className={`btn-small ${this.state.musicPlaying ? 'btn-active' : ''}`}
+                      onClick={this.toggleMusic}
                     >
-                      退出登录
+                      {this.state.musicPlaying ? '暂停音乐' : '播放音乐'}
                     </button>
-                  </React.Fragment>
-                )}
-                {this.state.isAdmin && (
-                  <button 
-                    className="btn-small btn-primary"
-                    onClick={() => this.setState({ showAdminPanel: !this.state.showAdminPanel })}
-                  >
-                    {this.state.showAdminPanel ? '隐藏' : '显示'}管理面板
-                  </button>
-                )}
-              </div>
+                  )}
+                  {!this.state.isAdmin && (
+                    <React.Fragment key="guest-controls">
+                      {/* 访客自动同步状态 */}
+                      <div className="sync-auto-status">
+                        <h3>自动同步状态</h3>
+                        <p className="sync-message">系统已启用自动同步，照片和设置将自动更新</p>
+                        {this.state.lastSyncTime > 0 && (
+                          <p className="last-sync-time">
+                            上次同步时间: {new Date(this.state.lastSyncTime).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <button 
+                        className="btn-small btn-primary"
+                        onClick={this.handleSwitchAccount}
+                      >
+                        切换账号
+                      </button>
+                      <button 
+                        className="btn-small btn-primary"
+                        onClick={this.handleLogout}
+                      >
+                        退出登录
+                      </button>
+                    </React.Fragment>
+                  )}
+                  {this.state.isAdmin && (
+                    <React.Fragment key="admin-controls">
+                      <button 
+                        className="btn-small btn-primary"
+                        onClick={this.handleSwitchAccount}
+                      >
+                        切换账号
+                      </button>
+                      <button 
+                        className="btn-small btn-primary"
+                        onClick={() => this.setState({ showAdminPanel: !this.state.showAdminPanel })}
+                      >
+                        {this.state.showAdminPanel ? '隐藏' : '显示'}管理面板
+                      </button>
+                    </React.Fragment>
+                  )}
+                </div>
             </div>
             
             {/* 画廊内容 */}
