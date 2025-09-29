@@ -1,25 +1,34 @@
-import React, { Component, createRef, useState, useEffect, useCallback } from 'react';
+import React, { Component, createRef } from 'react';
 import './App.css';
-
-// 从localStorage加载或初始化管理员和访客账户数据
-const loadAccountData = () => {
-  const savedAdmin = localStorage.getItem('adminAccount');
-  const savedGuest = localStorage.getItem('guestAccount');
-  
-  const ADMIN_ACCOUNT = savedAdmin 
-    ? JSON.parse(savedAdmin) 
-    : { username: 'admin', password: 'admin123' };
-  
-  const GUEST_ACCOUNT = savedGuest 
-    ? JSON.parse(savedGuest) 
-    : { username: 'guest', password: 'guest123' };
-  
-  return { ADMIN_ACCOUNT, GUEST_ACCOUNT };
-};
 
 // 保存账户数据到localStorage
 const saveAccountData = (type, account) => {
   localStorage.setItem(type === 'admin' ? 'adminAccount' : 'guestAccount', JSON.stringify(account));
+};
+
+// 从localStorage加载或初始化管理员和访客账户数据
+const loadAccountData = () => {
+  try {
+    const savedAdmin = localStorage.getItem('adminAccount');
+    const savedGuest = localStorage.getItem('guestAccount');
+    
+    const ADMIN_ACCOUNT = savedAdmin 
+      ? JSON.parse(savedAdmin) 
+      : { username: 'admin', password: 'admin123' };
+    
+    const GUEST_ACCOUNT = savedGuest 
+      ? JSON.parse(savedGuest) 
+      : { username: 'guest', password: 'guest123' };
+    
+    return { ADMIN_ACCOUNT, GUEST_ACCOUNT };
+  } catch (error) {
+    console.error('加载账户数据失败:', error);
+    // 出错时返回默认值
+    return {
+      ADMIN_ACCOUNT: { username: 'admin', password: 'admin123' },
+      GUEST_ACCOUNT: { username: 'guest', password: 'guest123' }
+    };
+  }
 };
 
 // 初始化账户数据
