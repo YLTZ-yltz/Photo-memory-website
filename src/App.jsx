@@ -1,16 +1,29 @@
 import React, { Component, createRef, useState, useEffect, useCallback } from 'react';
 import './App.css';
 
-// 模拟管理员和访客账户数据
-const ADMIN_ACCOUNT = {
-  username: 'admin',
-  password: 'admin123'
+// 从localStorage加载或初始化管理员和访客账户数据
+const loadAccountData = () => {
+  const savedAdmin = localStorage.getItem('adminAccount');
+  const savedGuest = localStorage.getItem('guestAccount');
+  
+  const ADMIN_ACCOUNT = savedAdmin 
+    ? JSON.parse(savedAdmin) 
+    : { username: 'admin', password: 'admin123' };
+  
+  const GUEST_ACCOUNT = savedGuest 
+    ? JSON.parse(savedGuest) 
+    : { username: 'guest', password: 'guest123' };
+  
+  return { ADMIN_ACCOUNT, GUEST_ACCOUNT };
 };
 
-const GUEST_ACCOUNT = {
-  username: 'guest',
-  password: 'guest123'
+// 保存账户数据到localStorage
+const saveAccountData = (type, account) => {
+  localStorage.setItem(type === 'admin' ? 'adminAccount' : 'guestAccount', JSON.stringify(account));
 };
+
+// 初始化账户数据
+const { ADMIN_ACCOUNT, GUEST_ACCOUNT } = loadAccountData();
 
 // 图片工具函数
 const compressImage = async (file, maxWidth = 1200, maxHeight = 800, quality = 0.8) => {
@@ -97,6 +110,11 @@ class App extends Component {
       isAdmin: false,
       loginUsername: '',
       loginPassword: '',
+      
+      // 账户管理
+      newGuestUsername: GUEST_ACCOUNT.username,
+      newGuestPassword: '',
+      confirmGuestPassword: '',
       
       // 图片数据
       images: [],
@@ -222,9 +240,12 @@ class App extends Component {
   handleLogin = (e) => {
     e.preventDefault();
     
+    // 每次登录时重新加载最新的账户数据
+    const { ADMIN_ACCOUNT: currentAdminAccount, GUEST_ACCOUNT: currentGuestAccount } = loadAccountData();
+    
     const { loginUsername, loginPassword } = this.state;
     
-    if (loginUsername === ADMIN_ACCOUNT.username && loginPassword === ADMIN_ACCOUNT.password) {
+    if (loginUsername === currentAdminAccount.username && loginPassword === currentAdminAccount.password) {
       this.setState({
         showLogin: false,
         currentUser: loginUsername,
@@ -234,7 +255,7 @@ class App extends Component {
         localStorage.setItem('isAdmin', 'true');
         this.loadImagesAndSettings();
       });
-    } else if (loginUsername === GUEST_ACCOUNT.username && loginPassword === GUEST_ACCOUNT.password) {
+    } else if (loginUsername === currentGuestAccount.username && loginPassword === currentGuestAccount.password) {
       this.setState({
         showLogin: false,
         currentUser: loginUsername,
@@ -272,6 +293,61 @@ class App extends Component {
     
     localStorage.removeItem('currentUser');
     localStorage.removeItem('isAdmin');
+  };
+  
+  // 更新访客账户名输入
+  handleGuestUsernameChange = (e) => {
+    this.setState({ newGuestUsername: e.target.value });
+  };
+  
+  // 更新访客账户密码输入
+  handleGuestPasswordChange = (e) => {
+    this.setState({ newGuestPassword: e.target.value });
+  };
+  
+  // 更新访客账户确认密码输入
+  handleConfirmGuestPasswordChange = (e) => {
+    this.setState({ confirmGuestPassword: e.target.value });
+  };
+  
+  // 修改访客账户
+  handleUpdateGuestAccount = () => {
+    const { newGuestUsername, newGuestPassword, confirmGuestPassword } = this.state;
+    
+    // 验证输入
+    if (!newGuestUsername.trim()) {
+      alert('用户名不能为空');
+      return;
+    }
+    
+    if (newGuestPassword !== confirmGuestPassword) {
+      alert('两次输入的密码不一致');
+      return;
+    }
+    
+    // 创建新的访客账户对象
+    const updatedGuestAccount = {
+      username: newGuestUsername,
+      password: newGuestPassword || GUEST_ACCOUNT.password // 如果没改密码则保持原密码
+    };
+    
+    // 保存到localStorage
+    saveAccountData('guest', updatedGuestAccount);
+    
+    // 重新加载账户数据
+    const { GUEST_ACCOUNT: newGuestAccountData } = loadAccountData();
+    
+    // 更新全局GUEST_ACCOUNT变量（这是一个临时解决方案，在实际应用中可能需要更复杂的状态管理）
+    Object.assign(GUEST_ACCOUNT, newGuestAccountData);
+    
+    // 重置表单
+    this.setState({
+      newGuestPassword: '',
+      confirmGuestPassword: '',
+      newGuestUsername: newGuestAccount.username
+    });
+    
+    alert('访客账户更新成功');
   };
 
   // 处理多张图片上传
@@ -894,6 +970,44 @@ class App extends Component {
                       <p>上次同步时间: {new Date(this.state.lastSyncTime).toLocaleString()}</p>
                     )}
                   </div>
+                </div>
+              </div>
+              
+              {/* 账户管理 */}
+              <div className="admin-section">
+                <h4>账户管理</h4>
+                <div className="account-management">
+                  <h5>访客账户</h5>
+                  <div className="setting-item">
+                    <label>用户名</label>
+                    <input
+                      type="text"
+                      value={this.state.newGuestUsername}
+                      onChange={this.handleGuestUsernameChange}
+                      placeholder="输入新的访客用户名"
+                    />
+                  </div>
+                  <div className="setting-item">
+                    <label>新密码（留空表示不修改）</label>
+                    <input
+                      type="password"
+                      value={this.state.newGuestPassword}
+                      onChange={this.handleGuestPasswordChange}
+                      placeholder="输入新的访客密码"
+                    />
+                  </div>
+                  <div className="setting-item">
+                    <label>确认密码</label>
+                    <input
+                      type="password"
+                      value={this.state.confirmGuestPassword}
+                      onChange={this.handleConfirmGuestPasswordChange}
+                      placeholder="再次输入密码"
+                    />
+                  </div>
+                  <button className="btn-primary" onClick={this.handleUpdateGuestAccount}>
+                    更新访客账户
+                  </button>
                 </div>
               </div>
               
