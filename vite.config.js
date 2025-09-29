@@ -1,7 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-  base: '/Photo-memory-website/'
-})
+// 简单的Vite配置
+export default {
+  base: '/Photo-memory-website/',
+  plugins: []
+}
